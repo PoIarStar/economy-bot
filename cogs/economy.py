@@ -21,7 +21,15 @@ class Economy(commands.Cog):
 
     @commands.slash_command()
     async def currencies(self, inter):
-        pass
+        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
+        system = cur.fetchone()[0]
+        cur.execute(f"SELECT name, is_crypt, in_use, free FROM currency WHERE system = {system}")
+        currencies = cur.fetchall()
+        text = ''
+        for i in currencies:
+            text += (i[0] + (', ходовая валюта' if not is_crypt else ', криптовалюта, ' + f'в ходу: {}, ' + f'свободно: {}'))
+        emb = disnake.Embed(title='Валюты', description=text)
+        await inter.response.send_message(embed=emb)
 
 
 def setup(bot):
