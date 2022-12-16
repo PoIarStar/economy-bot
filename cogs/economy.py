@@ -26,13 +26,25 @@ class Economy(commands.Cog):
 
     @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
+    async def edit_currency(self, inter, name, new_name, emoji):
+        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
+        try:
+            system = cur.fetchone()[0]
+            cur.execute(f"UPDATE currency SET emoji = '{emoji}', name = '{new_name}' WHERE name = '{name}' AND system = {system}")
+            conn.commit()
+            await inter.response.send_message('Успешно')
+        except TypeError:
+            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+
+    @commands.slash_command()
+    @commands.default_member_permissions(administrator=True)
     async def delete_currency(self, inter, currency):
         cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
         try:
             system = cur.fetchone()[0]
             cur.execute(f"SELECT * FROM currency WHERE system = {system}")
             if cur.fetchone():
-                cur.execute(f"DELETE FROM currency WHERE system = {system} and name = {currency}")
+                cur.execute(f"DELETE FROM currency WHERE system = {system} and name = '{currency}'")
                 conn.commit()
                 await inter.response.send_message('Успешно')
             else:
