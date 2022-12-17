@@ -92,7 +92,7 @@ class Economy(commands.Cog):
             text += f'Работа: {work[0] if work else "нет"}\n'
             text += f'Уровень доверия: {(values[2] + 3) // 4}'
             embed = disnake.Embed(title='Профиль', description=text, color=user.colour)
-            embed.set_author(name=user.nick, url=f'https://discordapp.com/users/{user.id}', icon_url=user.avatar.url)
+            embed.set_author(name=(user.nick if user.nick else user.name), url=f'https://discordapp.com/users/{user.id}', icon_url=user.avatar.url)
             await inter.response.send_message(embed=embed)
         except TypeError as e:
             print(e)

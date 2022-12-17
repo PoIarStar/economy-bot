@@ -16,7 +16,7 @@ cur = conn.cursor()
 
 
 bot = commands.Bot(command_prefix=disnake.ext.commands.when_mentioned,
-                   test_guilds=[983432883714789476],
+                   test_guilds=[983432883714789476, 971007825218240532],
                    sync_commands_debug=True,
                    intents=disnake.Intents.all())
 
