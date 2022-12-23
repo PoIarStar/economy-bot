@@ -1,6 +1,5 @@
 from main import cur, conn
 from random import randrange
-import disnake
 from disnake.ext import commands
 
 
@@ -50,12 +49,12 @@ class Events(commands.Cog):
             cur.execute(f"UPDATE users SET lvl = {lvl}, xp = {xp} WHERE uid = {message.author.id} "
                         f"AND system = {system}")
             conn.commit()
-            cur.execute(f"SELECT color_role FROM guilds WHERE guild = {message.guild.id}")
-            role = cur.fetchone()
-            if role:
-                if role[0]:
-                    role = message.guild.get_role(role[0])
-                    await role.edit(color=randrange(1, 16777215, 10))
+        cur.execute(f"SELECT color_role FROM guilds WHERE guild = {message.guild.id}")
+        role = cur.fetchone()
+        if role:
+            if role[0]:
+                role = message.guild.get_role(role[0])
+                await role.edit(color=randrange(1, 16777215, 10))
 
 
 def setup(bot):
