@@ -1,6 +1,6 @@
 from main import cur, conn
-from random import randrange
 from disnake.ext import commands
+import disnake
 
 
 class Events(commands.Cog):
@@ -35,7 +35,10 @@ class Events(commands.Cog):
         system = cur.fetchone()[0]
         cur.execute(f"SELECT flood_channel FROM guilds WHERE guild = {message.guild.id}")
         n = cur.fetchone()
-        n = n if n else ((0,),)
+        try:
+            n = n if n[0] else ((0,),)
+        except:
+            pass
         if not message.author.bot and message.channel.id not in n[0]:
             cur.execute(f"UPDATE users SET xp = xp + {len(message.content) // 75 + 1} WHERE uid "
                         f"= {message.author.id} AND system = {system}")
@@ -49,12 +52,53 @@ class Events(commands.Cog):
             cur.execute(f"UPDATE users SET lvl = {lvl}, xp = {xp} WHERE uid = {message.author.id} "
                         f"AND system = {system}")
             conn.commit()
-        cur.execute(f"SELECT color_role FROM guilds WHERE guild = {message.guild.id}")
-        role = cur.fetchone()
-        if role:
-            if role[0]:
-                role = message.guild.get_role(role[0])
-                await role.edit(color=randrange(1, 16777215, 10))
+        await self.mirror_ball()
+
+    async def mirror_ball(self):
+        for i in self.bot.guilds:
+            cur.execute(f"SELECT color_role FROM guilds WHERE guild = {i.id}")
+            role = cur.fetchone()
+            if role:
+                if role[0]:
+                    r = role[0]
+                    role = i.get_role(role[0])
+                    color = [i // 5 * 5 for i in list(role.color.to_rgb())]
+                    bright = min(color)
+                    color = [i - bright for i in color]
+                    if not color[2] and not color[1]:
+                        if color[0] < 255 - bright:
+                            color[0] += 5
+                        else:
+                            color[1] += 5
+                    elif not color[2] and not color[0]:
+                        if color[1] < 255 - bright:
+                            color[1] += 5
+                        else:
+                            color[2] += 5
+                    elif not color[0] and not color[1]:
+                        if color[2] < 255 - bright:
+                            color[2] += 5
+                        else:
+                            color[0] += 5
+                    elif not color[0]:
+                        if color[1] > color[2]:
+                            color[2] += 5
+                        else:
+                            color[1] -= 5
+                    elif not color[1]:
+                        if color[2] > color[0]:
+                            color[0] += 5
+                        else:
+                            color[2] -= 5
+                    elif not color[2]:
+                        if color[0] > color[1]:
+                            color[1] += 5
+                        else:
+                            color[0] -= 5
+
+                    color = [i + bright for i in color]
+                    colour = disnake.Color.from_rgb(*color)
+                    await role.edit(color=colour)
 
 
 def setup(bot):

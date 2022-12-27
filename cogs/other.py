@@ -1,7 +1,7 @@
 import disnake
 from disnake.ext import commands
 import random
-from main import cur
+from main import cur, conn
 # import aiohttp
 
 
@@ -27,13 +27,19 @@ class Other(commands.Cog):
     async def add_flood_channel(self, inter, channel: disnake.TextChannel):
         cur.execute(f"SELECT flood_channel FROM guilds WHERE guild = {inter.guild.id}")
         n = cur.fetchone()[0]
-        print(n)
         if channel.id in n:
             await inter.response.send_message('Этот канал уже является каналом для флуда')
         else:
             cur.execute(f"UPDATE guilds SET flood_channel = array_append(flood_channel, {channel.id}) WHERE "
                         f"guild = {inter.guild.id}")
             await inter.response.send_message('Успешно')
+
+    @commands.slash_command()
+    @commands.default_member_permissions(administrator=True)
+    async def set_color_role(self, inter, role: disnake.Role):
+        cur.execute(f"UPDATE guilds SET color_role = {role.id} WHERE guild = {inter.guild.id}")
+        conn.commit()
+        await inter.response.send_message('Успешно')
 
     @commands.slash_command()
     async def random_user(self, inter):
