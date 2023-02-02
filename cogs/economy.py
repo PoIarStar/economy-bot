@@ -17,12 +17,18 @@ class Economy(commands.Cog):
         cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
         try:
             system = cur.fetchone()[0]
-            cur.execute(f"INSERT INTO currency(emoji, name, is_crypt, system, in_use, free) VALUES "
-                        f"('{emoji}', '{name}', {bool(is_crypt)}, {system}, {0 if is_crypt else None},"
-                        f" {0 if is_crypt else None})")
+            cur.execute(f"SELECT id FROM currency WHERE system = {system}")
+            ids = [i[0] for i in cur.fetchall()]
+            if len(ids) > 4:
+                await inter.response.send_message('Достигнуто максимальное количество валют')
+                return
+            cur.execute(f"INSERT INTO currency(emoji, name, is_crypt, system, in_use, free, id) VALUES "
+                        f"('{emoji}', '{name}', {bool(is_crypt)}, {system}, {0 if is_crypt else 'NULL'},"
+                        f" {0 if is_crypt else 'NULL'}, {min(i for i in range(1, 6) if i not in ids)})")
             conn.commit()
             await inter.response.send_message('Успешно')
-        except TypeError:
+        except TypeError as e:
+            print(e)
             await inter.response.send_message('Ваш сервер не подключен к экономической системе')
 
     @commands.slash_command()
@@ -35,7 +41,8 @@ class Economy(commands.Cog):
                         f" name = '{name}' AND system = {system}")
             conn.commit()
             await inter.response.send_message('Успешно')
-        except TypeError:
+        except TypeError as e:
+            print(e)
             await inter.response.send_message('Ваш сервер не подключен к экономической системе')
 
     @commands.slash_command()
@@ -46,12 +53,16 @@ class Economy(commands.Cog):
             system = cur.fetchone()[0]
             cur.execute(f"SELECT * FROM currency WHERE system = {system}")
             if cur.fetchone():
+                cur.execute(f"SELECT id FROM currency WHERE name = '{currency}' and system = {system}")
+                num = cur.fetchone()[0]
+                cur.execute(f"UPDATE users SET currency_{num} = 0 WHERE system = {system}")
                 cur.execute(f"DELETE FROM currency WHERE system = {system} and name = '{currency}'")
                 conn.commit()
                 await inter.response.send_message('Успешно')
             else:
                 await inter.response.send_message('Данной валюты не существует')
-        except TypeError:
+        except TypeError as e:
+            print(e)
             await inter.response.send_message('Ваш сервер не подключен к экономической системе')
 
     @commands.slash_command()
@@ -69,11 +80,12 @@ class Economy(commands.Cog):
                                                               f'в ходу: {i[2]}, ' + f'свободно: {i[3]}') + '\n')
                 c += 1
             await inter.response.send_message(embed=disnake.Embed(title='Валюты', description=text))
-        except TypeError:
+        except TypeError as e:
+            print(e)
             await inter.response.send_message('Ваш сервер не подключен к экономической системе')
 
     @commands.slash_command()
-    async def profile(self, inter, user: disnake.Member):
+    async def profile(self, inter, user: disnake.User):
         cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
         try:
             system = cur.fetchone()[0]
@@ -92,8 +104,48 @@ class Economy(commands.Cog):
             text += f'Работа: {work[0] if work else "нет"}\n'
             text += f'Уровень доверия: {(values[2] + 3) // 4}'
             embed = disnake.Embed(title='Профиль', description=text, color=user.colour)
-            embed.set_author(name=(user.nick if user.nick else user.name), url=f'https://discordapp.com/users/{user.id}', icon_url=user.avatar.url)
+            embed.set_author(name=user.name,
+                             url=f'https://discordapp.com/users/{user.id}', icon_url=user.avatar.url)
             await inter.response.send_message(embed=embed)
+        except TypeError as e:
+            print(e)
+            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+
+    @commands.slash_command()
+    @commands.default_member_permissions(administrator=True)
+    async def create_work(self, inter, name, currency, wages, requirement_level):
+        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
+        try:
+            system = cur.fetchone()[0]
+            cur.execute(f"INSERT INTO works(name, currency, wages, req_lvl, system) VALUES"
+                        f" ('{name}', '{currency}', {wages}, {requirement_level}, {system})")
+            conn.commit()
+            await inter.response.send_message('Успешно')
+        except TypeError as e:
+            print(e)
+            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+
+    @commands.slash_command()
+    @commands.default_member_permissions(administrator=True)
+    async def add_money(self, inter, user: disnake.User, currency, value, reason='не указана'):
+        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
+        try:
+            system = cur.fetchone()[0]
+            cur.execute(f"SELECT id FROM currency WHERE name = '{currency}' and system = {system}")
+            num = cur.fetchone()[0]
+            cur.execute(f"UPDATE users set currency_{num} = currency_{num} + {int(value)} WHERE uid = {user.id} "
+                        f"AND system = {system}")
+            conn.commit()
+            await inter.response.send_message(f'{user} получает {value} единиц валюты {currency}. Причина: {reason}')
+        except TypeError as e:
+            print(e)
+            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+
+    @commands.slash_command()
+    async def work(self, inter):
+        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
+        try:
+            system = cur.fetchone()[0]
         except TypeError as e:
             print(e)
             await inter.response.send_message('Ваш сервер не подключен к экономической системе')
