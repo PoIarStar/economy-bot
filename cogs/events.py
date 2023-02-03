@@ -37,8 +37,8 @@ class Events(commands.Cog):
         n = cur.fetchone()
         try:
             n = n if n[0] else ((0,),)
-        except:
-            pass
+        except Exception as e:
+            print(e)
         if not message.author.bot and message.channel.id not in n[0]:
             cur.execute(f"UPDATE users SET xp = xp + {len(message.content) // 75 + 1} WHERE uid "
                         f"= {message.author.id} AND system = {system}")
@@ -60,7 +60,6 @@ class Events(commands.Cog):
             role = cur.fetchone()
             if role:
                 if role[0]:
-                    r = role[0]
                     role = i.get_role(role[0])
                     color = [i // 5 * 5 for i in list(role.color.to_rgb())]
                     bright = min(color)
