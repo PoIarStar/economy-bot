@@ -1,5 +1,6 @@
 from disnake.ext import commands
 from main import cur, conn
+from time import time
 import disnake
 
 
@@ -142,10 +143,68 @@ class Economy(commands.Cog):
             await inter.response.send_message('Ваш сервер не подключен к экономической системе')
 
     @commands.slash_command()
+    async def works(self, inter):
+        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
+        try:
+            system = cur.fetchone()[0]
+            cur.execute(f"SELECT name, req_lvl, currency, wages FROM works WHERE system = {system}")
+            emb = disnake.Embed(title='Вакансии')
+            for i in cur.fetchall():
+                emb.add_field(i[0], f'Необходимый уровень: {i[1]}\nВалюта оплаты: {i[2]}\nОплата: {i[3]}')
+            await inter.response.send_message(embed=emb)
+        except TypeError as e:
+            print(e)
+            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+
+    @commands.slash_command()
+    async def work_selection(self, inter, name):
+        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
+        try:
+            system = cur.fetchone()[0]
+            cur.execute(f"SELECT id FROM works WHERE system = {system} and name = '{name}'")
+            work = cur.fetchone()
+            if not work:
+                await inter.response.send_message('Вакансии с таким названием не существует')
+                return
+            cur.execute(f"SELECT lvl FROM users WHERE system = {system} and uid = {inter.author.id}")
+            lvl = cur.fetchone()[0]
+            cur.execute(f"SELECT req_lvl FROM works WHERE system = {system} and name = '{name}'")
+            if cur.fetchone()[0] > lvl:
+                await inter.response.send_message('У вас слишком низкий уровень')
+                return
+            cur.execute(f'UPDATE users SET work_id = {work[0]} WHERE system = {system} and uid = {inter.author.id}')
+            conn.commit()
+            await inter.response.send_message(f'Вы успешно устроились на работу по профессии {name}')
+        except TypeError as e:
+            print(e)
+            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+
+    @commands.slash_command()
     async def work(self, inter):
         cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
         try:
             system = cur.fetchone()[0]
+            cur.execute(f"SELECT work_time, work_id FROM users WHERE system = {system} and uid = {inter.author.id}")
+            timer, work = cur.fetchone()
+            time_now = time()
+            if time_now < timer:
+                await inter.response.send_message(f'Вы можете работать <t:{timer}:R>')
+                return
+            elif not work:
+                await inter.response.send_message(f'Вы не устроены на работу')
+                return
+            while timer < time_now:
+                timer += 86400
+            cur.execute(f"UPDATE users SET work_time = {timer} WHERE system = {system} and uid = {inter.author.id}")
+            conn.commit()
+            cur.execute(f"SELECT wages, currency FROM works WHERE system = {system} and id = {work}")
+            wages, currency = cur.fetchone()
+            cur.execute(f"SELECT id, emoji FROM currency WHERE name = '{currency}' AND system = {system}")
+            currency, emoji = cur.fetchone()
+            cur.execute(f"UPDATE users SET currency_{currency} = currency_{currency} + {wages} WHERE system = {system}"
+                        f" AND uid = {inter.author.id}")
+            conn.commit()
+            await inter.response.send_message(f'Вы заработали {wages}{emoji}')
         except TypeError as e:
             print(e)
             await inter.response.send_message('Ваш сервер не подключен к экономической системе')
