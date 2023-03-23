@@ -13,6 +13,11 @@ class Connection(commands.Cog):
         print("Connection successfully loaded")
 
     @commands.slash_command()
+    async def system_info(self, inter):
+        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
+        await inter.response.send_message(str(cur.fetchall()))
+
+    @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
     async def create_system(self, inter, sys_name, password):
         cur.execute("SELECT id FROM systems")
@@ -38,6 +43,7 @@ class Connection(commands.Cog):
                                               ephemeral=True)
         elif n[1] == password:
             cur.execute(f"DELETE FROM systems WHERE id = {id}")
+            cur.execute(f'UPDATE guilds SET system = NULL WHERE system = {id}')
             conn.commit()
             await inter.response.send_message(f'Экономическая система удалена', ephemeral=True)
         else:
@@ -105,9 +111,6 @@ class Connection(commands.Cog):
                 await inter.response.send_message(
                     f'Этот сервер не подключен к экономической системе.',
                     ephemeral=True)
-
-    def __del__(self):
-        conn.close()
 
 
 def setup(bot):

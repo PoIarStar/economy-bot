@@ -5,6 +5,14 @@ import disnake
 import os
 
 
+class Bot1(commands.Bot):
+    def __init__(self, *args, **qwargs):
+        super().__init__(*args, qwargs)
+
+    def __del__(self):
+        conn.close()
+
+
 conn = psycopg2.connect(
     dbname='bot',
     user='postgres',
@@ -14,11 +22,10 @@ conn = psycopg2.connect(
 
 cur = conn.cursor()
 
-
-bot = commands.Bot(command_prefix=disnake.ext.commands.when_mentioned,
-                   test_guilds=[983432883714789476, 971007825218240532],
-                   sync_commands_debug=True,
-                   intents=disnake.Intents.all())
+bot = Bot1(command_prefix=disnake.ext.commands.when_mentioned,
+           test_guilds=[983432883714789476, 971007825218240532],
+           sync_commands_debug=True,
+           intents=disnake.Intents.all())
 
 for name in os.listdir("cogs"):
     if name.endswith(".py"):
