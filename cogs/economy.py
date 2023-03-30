@@ -281,7 +281,7 @@ class Economy(commands.Cog):
                             f' uid = {inter.author.id} AND system = {system}')
                 conn.commit()
                 await inter.response.send_message('Успешно')
-        except ZeroDivisionError as e:
+        except TypeError as e:
             print(e)
             await inter.response.send_message('Ваш сервер не подключен к экономической системе')
 
