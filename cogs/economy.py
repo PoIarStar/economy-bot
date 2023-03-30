@@ -1,16 +1,14 @@
 from disnake.ext import commands
 from main import cur, conn
 from time import time
+from random import choice
+from config import default
 import disnake
 
 
 class Economy(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        print('Economy succesfully loaded')
 
     @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
@@ -206,6 +204,84 @@ class Economy(commands.Cog):
             conn.commit()
             await inter.response.send_message(f'Вы заработали {wages}{emoji}')
         except TypeError as e:
+            print(e)
+            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+
+    @commands.slash_command()
+    @commands.default_member_permissions(administrator=True)
+    async def create_item(self, inter, name, description, currency, price: int, add_role: disnake.Role = None,
+                          remove_role: disnake.Role = None):
+        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
+        try:
+            system = cur.fetchone()[0]
+            cur.execute(f"SELECT id FROM currency WHERE system = {system} AND name = '{currency}'")
+            currency = cur.fetchone()[0]
+            cur.execute("INSERT INTO SHOP(name, description, currency, price, add_role, remove_role, guild)"
+                        f" VALUES('{name}', '{description}', '{currency}', {price}, "
+                        f"{add_role.id if add_role else 'NULL'}, {remove_role.id if remove_role else 'NULL'},"
+                        f" {inter.guild.id})")
+            conn.commit()
+            await inter.response.send_message('Успешно')
+        except TypeError as e:
+            print(e)
+            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+
+    @commands.slash_command()
+    @commands.default_member_permissions(administrator=True)
+    async def delete_item(self, inter, name):
+        cur.execute(f"DELETE FROM shop WHERE name = '{name}' and guild = {inter.guild.id}")
+        conn.commit()
+        await inter.response.send_message('Если что-то с таким названием было, его больше нет')
+
+    @commands.slash_command()
+    async def shop(self, inter):
+        cur.execute(f'SELECT system FROM guilds WHERE guild = {inter.guild.id}')
+        system = cur.fetchone()[0]
+        cur.execute(f"SELECT name, currency, price, add_role, remove_role, description FROM shop"
+                    f" WHERE guild = {inter.guild.id}")
+        emb = disnake.Embed(title='Магазин')
+        for i in cur.fetchall():
+            i = list(i)
+            if system:
+                cur.execute(f"SELECT name FROM currency WHERE id = {i[1]} AND system = {system}")
+                i[1] = cur.fetchone()
+            else:
+                i[1], i[2] = choice(default), '∞'
+            field = '\n'.join([i for i in ['**Стоимость:** ' + str(i[2]),
+                                           ('**Валюта:** ' + str(i[1][0])) if i[1] not in default else '' + i[1],
+                                           '**Добавляемая роль:** ' + f'<@&{i[3]}>' if i[3] else '',
+                                           '**Снимаемая роль:** ' + f'<@&{i[4]}>' if i[4] else '',
+                                           '**Описание:** ' + i[5]
+                                           ] if i])
+            emb.add_field(name=i[0], value=field, inline=False)
+        await inter.response.send_message(embed=emb)
+
+    @commands.slash_command()
+    async def buy(self, inter, name):
+        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
+        try:
+            system = cur.fetchone()[0]
+            cur.execute(f"SELECT price, currency, req_lvl, add_role, remove_role FROM shop"
+                        f" WHERE guild = {inter.guild.id} AND name = '{name}'")
+            item = cur.fetchone()
+            if item:
+                cur.execute(f'SELECT lvl FROM users WHERE uid = {inter.author.id} AND system = {system}')
+                if cur.fetchone()[0] < item[2]:
+                    await inter.response.send_message('Слишком низкий уровень')
+                    return
+                cur.execute(f'SELECT currency_{item[1]} FROM users WHERE uid = {inter.author.id} AND system = {system}')
+                if cur.fetchone()[0] < item[0]:
+                    await inter.response.send_message('Недостаточно средств')
+                    return
+                if item[3]:
+                    await inter.author.add_roles(inter.guild.get_role(item[3]))
+                if item[4]:
+                    await inter.author.remove_roles(inter.guild.get_role(item[4]))
+                cur.execute(f'UPDATE users SET currency_{item[1]} = currency_{item[1]} - {item[0]} WHERE'
+                            f' uid = {inter.author.id} AND system = {system}')
+                conn.commit()
+                await inter.response.send_message('Успешно')
+        except ZeroDivisionError as e:
             print(e)
             await inter.response.send_message('Ваш сервер не подключен к экономической системе')
 

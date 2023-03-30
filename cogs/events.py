@@ -9,7 +9,6 @@ class Events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print(self.bot.guilds)
         cur.execute("SELECT guild, system FROM guilds WHERE system IS NOT NULL")
         for i in cur.fetchall():
             for j in self.bot.get_guild(i[0]).members:
@@ -18,11 +17,10 @@ class Events(commands.Cog):
                 if (j.id, i[1]) not in n:
                     cur.execute(f"INSERT INTO users(uid, system) VALUES ({j.id}, {i[1]})")
                     conn.commit()
-        print('Events successfully loaded')
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {member.guild}")
+        cur.execute(f"SELECT system FROM guilds WHERE guild = {member.guild.id}")
         system = cur.fetchone()[0]
         cur.execute(f"SELECT * FROM users WHERE uid = {member.id} AND system = {system}")
         if not cur.fetchone():

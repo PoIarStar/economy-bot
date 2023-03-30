@@ -8,10 +8,6 @@ class Connection(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        print("Connection successfully loaded")
-
     @commands.slash_command()
     async def system_info(self, inter):
         cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")

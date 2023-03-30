@@ -6,9 +6,6 @@ import os
 
 
 class Bot1(commands.Bot):
-    def __init__(self, *args, **qwargs):
-        super().__init__(*args, qwargs)
-
     def __del__(self):
         conn.close()
 

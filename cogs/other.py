@@ -18,10 +18,6 @@ class Other(commands.Cog):
     #    await suggest_hook.send(username=inter.author.name, embed=emb, avatar_url=inter.author.avatar.url)
     #    await aiohttp.ClientSession.close()
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        print("Other succesfully loaded")
-
     @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
     async def add_flood_channel(self, inter, channel: disnake.TextChannel):
