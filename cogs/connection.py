@@ -11,16 +11,22 @@ class Connection(commands.Cog):
     @commands.slash_command()
     async def system_info(self, inter):
         cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        await inter.response.send_message(str(cur.fetchall()))
+        id = cur.fetchone()[0]
+        if id:
+            cur.execute(f'SELECT name FROM systems WHERE id = {id}')
+            name = f'Ваш сервер подключен к экономической системе "{cur.fetchone()[0]}"'
+        else:
+            name = 'Ваш сервер не подключен к экономической системе'
+        await inter.response.send_message(embed=disnake.Embed(title='Информация', description=name))
 
     @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
     async def create_system(self, inter, sys_name, password):
         cur.execute("SELECT id FROM systems")
         ids = cur.fetchall()
-        n = randint(10000000, 99999999)
+        n = randint(0, 99999999)
         while n in ids:
-            n = randint(10000000, 99999999)
+            n = randint(0, 99999999)
         cur.execute(f"INSERT INTO systems(id, name, password) VALUES ({n}, '{sys_name}', '{password}')")
         conn.commit()
         await inter.response.send_message(f'Экономическая система успешно создана. Идентификатор системы - {n}. '
@@ -42,6 +48,10 @@ class Connection(commands.Cog):
             cur.execute(f'UPDATE guilds SET system = NULL WHERE system = {id}')
             conn.commit()
             await inter.response.send_message(f'Экономическая система удалена', ephemeral=True)
+            await inter.channel.send(
+                embed=disnake.Embed(
+                    title='Подключение',
+                    description=f'Ваш сервер отключен от экономической системы'))
         else:
             await inter.response.send_message(f'Неверный пароль', ephemeral=True)
 
@@ -74,11 +84,12 @@ class Connection(commands.Cog):
                     cur.execute(f"INSERT INTO users(uid, system) VALUES ({i.id}, {id})")
                     conn.commit()
             cur.execute(f"SELECT name FROM systems WHERE id = {id}")
+            name = cur.fetchone()[0]
             await inter.response.send_message(f'Успешно', ephemeral=True)
             await inter.channel.send(
                 embed=disnake.Embed(
                     title='Подключение',
-                    description=f'Ваш сервер подключен к экономической системе "{cur.fetchone()[0]}"'))
+                    description=f'Ваш сервер подключен к экономической системе "{name}"'))
         else:
             await inter.response.send_message(f'Неверный пароль', ephemeral=True)
 
