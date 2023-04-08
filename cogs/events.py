@@ -1,11 +1,13 @@
 from main import cur, conn
-from disnake.ext import commands
+from disnake.ext import commands, tasks
 import disnake
+from time import time
 
 
 class Events(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.update_stock_market.start()
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -28,6 +30,20 @@ class Events(commands.Cog):
             conn.commit()
 
     @commands.Cog.listener()
+    async def on_slash_command_error(self, inter, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            await inter.response.send_message(f'У нас перерыв. Приходите <t:{int(error.retry_after + time())}:R>')
+
+    @tasks.loop(hours=1)
+    async def update_stock_market(self):
+        cur.execute('SELECT id, system FROM currency')
+        for i in cur.fetchall():
+            cur.execute(f'SELECT currency_{i[0]} FROM users WHERE system = {i[1]}')
+            money = cur.fetchall()
+            cur.execute(f'UPDATE currency SET great_unit = {sum((i[0] for i in money)) / len(money) * 0.02}')
+            conn.commit()
+
+    @commands.Cog.listener()
     async def on_message(self, message):
         cur.execute(f"SELECT system FROM guilds WHERE guild = {message.guild.id}")
         system = cur.fetchone()[0]
@@ -45,8 +61,8 @@ class Events(commands.Cog):
                         f"AND system = {system}")
             xp, lvl = cur.fetchone()
             while xp >= lvl * 25:
-                xp = xp - lvl * 25
-                lvl = lvl + 1
+                xp -= lvl * 25
+                lvl += 1
             cur.execute(f"UPDATE users SET lvl = {lvl}, xp = {xp} WHERE uid = {message.author.id} "
                         f"AND system = {system}")
             conn.commit()
