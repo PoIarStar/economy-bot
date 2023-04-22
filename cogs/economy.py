@@ -427,7 +427,6 @@ class Economy(commands.Cog):
         if currency[0]:
             await inter.response.send_message('Мы не принимаем криптовалюту')
             return
-        print(currency, system, inter.author.id)
         cur.execute(f'SELECT currency_{currency[2]} FROM users WHERE uid = {inter.author.id} and system = {system}')
         money = cur.fetchone()[0]
         if bet > 1000000 * currency[1]:
