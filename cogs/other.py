@@ -1,7 +1,8 @@
-import disnake
 from disnake.ext import commands
-import random
 from main import cur, conn
+
+import disnake
+import random
 # import aiohttp
 
 
@@ -54,14 +55,6 @@ class Other(commands.Cog):
              'сконцентрируйся и спроси опять', 'даже не думай', 'мой ответ — "нет"', 'по моим данным, нет',
              'перспективы не очень хорошие', 'весьма сомнительно'])
         await inter.response.send_message(f'Что касается события "{event}", {n}')
-
-    @commands.slash_command()
-    async def write(self, inter, text: str, channel: disnake.TextChannel):
-        await channel.send(text)
-
-    @commands.slash_command()
-    async def reply_message(self, inter, text: str, channel: disnake.TextChannel, message):
-        await channel.get_partial_message(int(message)).reply(text)
 
 
 def setup(bot):

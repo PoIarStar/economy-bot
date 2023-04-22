@@ -1,7 +1,9 @@
 from main import cur, conn
 from disnake.ext import commands, tasks
-import disnake
 from time import time
+from datas import great_unit_cnt
+
+import disnake
 
 
 class Events(commands.Cog):
@@ -36,11 +38,11 @@ class Events(commands.Cog):
 
     @tasks.loop(hours=1)
     async def update_stock_market(self):
-        cur.execute('SELECT id, system FROM currency')
+        cur.execute('SELECT id, system FROM currencies')
         for i in cur.fetchall():
             cur.execute(f'SELECT currency_{i[0]} FROM users WHERE system = {i[1]}')
             money = cur.fetchall()
-            cur.execute(f'UPDATE currency SET great_unit = {sum((i[0] for i in money)) / len(money) * 0.02}')
+            cur.execute(f'UPDATE currencies SET great_unit = {sum((i[0] for i in money)) / len(money) * great_unit_cnt}')
             conn.commit()
 
     @commands.Cog.listener()

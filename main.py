@@ -1,5 +1,6 @@
 from disnake.ext import commands
-from config import settings
+from configparser import ConfigParser
+
 import psycopg2
 import disnake
 import os
@@ -10,22 +11,25 @@ class Bot1(commands.Bot):
         conn.close()
 
 
+config = ConfigParser()
+config.read('config.ini')
+
 conn = psycopg2.connect(
-    dbname='bot',
-    user='postgres',
-    password=settings['passwd'],
-    host='127.0.0.1',
-    port=5432)
+    dbname=config['database']['name'],
+    user=config['database']['user'],
+    password=config['database']['password'],
+    host=config['database']['host'],
+    port=config['database']['port'])
 
 cur = conn.cursor()
 
 bot = Bot1(command_prefix=disnake.ext.commands.when_mentioned,
-           test_guilds=[983432883714789476, 971007825218240532],
-           sync_commands_debug=True,
+           test_guilds=[971007825218240532],
+           command_sync_flags=commands.CommandSyncFlags(),
            intents=disnake.Intents.all())
 
-for name in os.listdir("cogs"):
-    if name.endswith(".py"):
-        bot.load_extension(f"cogs.{name[:-3]}")
+for name in os.listdir('cogs'):
+    if name.endswith('.py'):
+        bot.load_extension(f'cogs.{name[:-3]}')
 
-bot.run(settings["token"])
+bot.run(config['bot']['token'])

@@ -1,7 +1,8 @@
 from main import cur, conn
 from random import randint
-import disnake
 from disnake.ext import commands
+
+import disnake
 
 
 class Connection(commands.Cog):
