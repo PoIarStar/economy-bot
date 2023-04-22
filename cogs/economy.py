@@ -152,6 +152,12 @@ class Economy(commands.Cog):
                 await inter.response.send_message('Валюта по-умолчанию настроена неправильно')
                 return
             currency = currency[0]
+        cur.execute(f"SELECT id FROM currencies WHERE name = '{currency}' and system = {system}")
+        currency = cur.fetchone()
+        if not currency:
+            await inter.response.send_message('Название валюты указано неверно')
+            return
+        currency = currency[0]
         cur.execute(f"INSERT INTO works(name, currency, wages, req_lvl, system) VALUES"
                     f" ('{name}', '{currency}', {wages}, {requirement_level}, {system})")
         conn.commit()
@@ -176,8 +182,12 @@ class Economy(commands.Cog):
                 return
             currency = currency[0]
         cur.execute(f"SELECT id FROM currencies WHERE name = '{currency}' and system = {system}")
-        num = cur.fetchone()[0]
-        cur.execute(f"UPDATE users set currency_{num} = currency_{num} + {int(value)} WHERE uid = {user.id} "
+        currency = cur.fetchone()
+        if not currency:
+            await inter.response.send_message('Название валюты указано неверно')
+            return
+        currency = currency[0]
+        cur.execute(f"UPDATE users set currency_{currency} = currency_{currency} + {int(value)} WHERE uid = {user.id} "
                     f"AND system = {system}")
         conn.commit()
         await inter.response.send_message(f'{user} получает {value} единиц валюты {currency}.'
@@ -270,7 +280,11 @@ class Economy(commands.Cog):
                 return
             currency = currency[0]
         cur.execute(f"SELECT id FROM currencies WHERE system = {system} AND name = '{currency}'")
-        currency = cur.fetchone()[0]
+        currency = cur.fetchone()
+        if not currency:
+            await inter.response.send_message('Название валюты указано неверно')
+            return
+        currency = currency[0]
         cur.execute("INSERT INTO SHOP(name, description, currency, price, add_role, remove_role, guild)"
                     f" VALUES('{name}', '{description}', '{currency}', {price}, "
                     f"{add_role.id if add_role else 'NULL'}, {remove_role.id if remove_role else 'NULL'},"
@@ -381,7 +395,11 @@ class Economy(commands.Cog):
                 return
         if randint(1, 6) > bullets:
             cur.execute(f"SELECT great_unit, emoji, id FROM currencies WHERE name = '{currency}'")
-            unit, emoji, id = cur.fetchone()
+            currency = cur.fetchone()
+            if not currency:
+                await inter.response.send_message('Название валюты указано неверно')
+                return
+            unit, emoji, id = currency
             cur.execute(f'SELECT roulette_cnt FROM users WHERE uid = {inter.author.id} AND system = {system}')
             cnt = cur.fetchone()[0]
             prize = round(bullets * unit * cnt)
