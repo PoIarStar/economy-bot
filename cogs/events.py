@@ -10,6 +10,7 @@ class Events(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.update_stock_market.start()
+        self.update_bank.start()
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -42,8 +43,42 @@ class Events(commands.Cog):
         for i in cur.fetchall():
             cur.execute(f'SELECT currency_{i[0]} FROM users WHERE system = {i[1]}')
             money = cur.fetchall()
-            cur.execute(f'UPDATE currencies SET great_unit = {sum((i[0] for i in money)) / len(money) * great_unit_cnt}')
+            cur.execute(
+                f'UPDATE currencies SET great_unit = {sum((i[0] for i in money)) / len(money) * great_unit_cnt}')
             conn.commit()
+
+    @tasks.loop(hours=1)
+    async def update_bank(self):
+        if time() % 86400 < 3600:
+            cur.execute('UPDATE bank SET value = value + value * rate')
+        cur.execute(f"UPDATE bank SET value = value * 2 WHERE end_time < {time()} AND type = 'C' AND rate <> 0")
+        cur.execute(f'SELECT system, uid, type, currency, value, guarantor FROM bank WHERE end_time < {time()}')
+        for i in cur.fetchall():
+            if i[2] == 'C':
+                cur.execute(f"UPDATE bank SET rate = 0 WHERE end_time < {time()} AND type = 'C'")
+                for j in self.bot.guilds:
+                    cur.execute(f'SELECT alert_channel FRMO guilds WHERE guild = {j.id}')
+                    channel = cur.fetchone()
+                    cur.execute(f'SELECT system FROM guilds WHERE guild = {j.id}')
+                    if cur.fetchone()[0] == i[0] and j.get_member(i[1]) and channel:
+                        await j.get_channel(channel).send(
+                            embed=disnake.Embed(
+                                description=f'<@{i[1]}>, срок кредита истёк истёк. Начисление процентов прекращено.'
+                                            f' К оплате {i[4]}'))
+                        break
+            else:
+                cur.execute(f'UPDATE users SET currency_{i[3]} = currency_{i[3]} + {i[4]} WHERE uid = {i[1]} '
+                            f'AND system = {i[0]}')
+                cur.execute(f'DELETE FROM bank WHERE uid = {i[1]} AND system = {i[0]}')
+                for j in self.bot.guilds:
+                    cur.execute(f'SELECT alert_channel FRMO guilds WHERE guild = {j.id}')
+                    channel = cur.fetchone()
+                    cur.execute(f'SELECT system FROM guilds WHERE guild = {j.id}')
+                    if cur.fetchone()[0] == i[0] and j.get_member(i[1]) and channel:
+                        await j.get_channel(channel).send(
+                            embed=disnake.Embed(
+                                description=f'<@{i[1]}>, срок вклада истёк. Средства возвращены на основной счёт'))
+                        break
 
     @commands.Cog.listener()
     async def on_message(self, message):

@@ -10,6 +10,13 @@ class Other(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    @commands.slash_command()
+    @commands.default_member_permissions(administrator=True)
+    async def set_notice_channel(self, inter, channel: disnake.TextChannel):
+        cur.execute(f'UPDATE guilds SET alert_channel = {channel.id}')
+        conn.commit()
+        await inter.response.send_message('Успешно')
+
     # @commands.slash_command()
     # async def suggest(self, inter, text):
     #    suggest_hook = disnake.Webhook.from_url('https://discord.com/api/webhooks/983728997642944562/28fIZHMCxnhRPS'
