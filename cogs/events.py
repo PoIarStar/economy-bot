@@ -2,12 +2,13 @@ from main import cur, conn
 from disnake.ext import commands, tasks
 from time import time
 from datas import great_unit_cnt
+from asyncio import sleep
 
 import disnake
 
 
 class Events(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.update_stock_market.start()
         self.update_bank.start()
@@ -49,6 +50,7 @@ class Events(commands.Cog):
 
     @tasks.loop(hours=1)
     async def update_bank(self):
+        await sleep(10)
         if time() % 86400 < 3600:
             cur.execute('UPDATE bank SET value = value + value * rate')
         cur.execute(f"UPDATE bank SET value = value * 2 WHERE end_time < {time()} AND type = 'C' AND rate <> 0")
@@ -71,11 +73,11 @@ class Events(commands.Cog):
                             f'AND system = {i[0]}')
                 cur.execute(f'DELETE FROM bank WHERE uid = {i[1]} AND system = {i[0]}')
                 for j in self.bot.guilds:
-                    cur.execute(f'SELECT alert_channel FRMO guilds WHERE guild = {j.id}')
+                    cur.execute(f'SELECT alert_channel FROM guilds WHERE guild = {j.id}')
                     channel = cur.fetchone()
                     cur.execute(f'SELECT system FROM guilds WHERE guild = {j.id}')
                     if cur.fetchone()[0] == i[0] and j.get_member(i[1]) and channel:
-                        await j.get_channel(channel).send(
+                        await j.get_channel(channel[0]).send(
                             embed=disnake.Embed(
                                 description=f'<@{i[1]}>, срок вклада истёк. Средства возвращены на основной счёт'))
                         break
