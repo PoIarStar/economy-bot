@@ -1,11 +1,11 @@
 from main import cur, conn
 from disnake.ext import commands, tasks
 from time import time
-from datas import great_unit_cnt
 from dbtools import CurrencySetupError, CurrencyNameError, SystemConnectionError, SystemNotFindError
 from asyncio import sleep
 
 import disnake
+import json
 
 
 class Events(commands.Cog):
@@ -55,7 +55,8 @@ class Events(commands.Cog):
             cur.execute(f'SELECT currency_{i[0]} FROM users WHERE system = {i[1]}')
             money = cur.fetchall()
             cur.execute(
-                f'UPDATE currencies SET great_unit = {sum((i[0] for i in money)) / len(money) * great_unit_cnt}')
+                f'UPDATE currencies SET great_unit ='
+                f' {sum((i[0] for i in money)) / len(money) * json.loads("datas.json")["great_unit_cnt"]}')
             conn.commit()
 
     @tasks.loop(hours=1)

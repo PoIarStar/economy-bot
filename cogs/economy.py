@@ -3,14 +3,24 @@ from main import cur, conn
 from time import time
 from random import choice, randint
 from dbtools import get_system, get_currency
-from datas import recession, wheel
 
 import disnake
+import json
 
 
 class Economy(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.wheel = [
+            20,
+            *[10] * 3,
+            *[5] * 6,
+            *[1] * 30,
+            *[0] * 48,
+            *[-0.5] * 12,
+            *[-0.9] * 60,
+            *[-1] * 30
+        ]
 
     @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
@@ -196,6 +206,7 @@ class Economy(commands.Cog):
         cur.execute(f"SELECT name, currency, price, add_role, remove_role, description FROM shop"
                     f" WHERE guild = {inter.guild.id}")
         emb = disnake.Embed(title='Магазин')
+        recession = json.loads('datas.json')['recession']
         for i in cur.fetchall():
             i = list(i)
             if system:
@@ -311,7 +322,7 @@ class Economy(commands.Cog):
             await inter.response.send_message(
                 embed=disnake.Embed(title='Колесо фортуны', description='Не пытайся обмануть систему.'))
         elif money >= bet:
-            win = choice(wheel) * bet
+            win = choice(self.wheel) * bet
             await inter.response.send_message(
                 embed=disnake.Embed(
                     title='Колесо фортуны',

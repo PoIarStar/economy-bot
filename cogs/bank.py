@@ -1,7 +1,6 @@
 import disnake
 from disnake.ext import commands
 from main import cur, conn
-from datas import bank
 from dbtools import get_system, get_currency
 
 import time
@@ -179,10 +178,6 @@ class Bank(commands.Cog):
             embed=disnake.Embed(
                 title='Банк',
                 description=f'Вы не можте сделать вклад на сумму, большую {10 ** (2 + rating) * currency[1]}.'))
-
-    @commands.slash_command()
-    async def bank_help(self, inter):
-        await inter.response.send_message(embed=disnake.Embed(title='Банк', description=bank))
 
     @commands.slash_command()
     async def guarantee(self, inter, client: disnake.Member):
