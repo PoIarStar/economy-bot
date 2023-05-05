@@ -2,6 +2,7 @@ from main import cur, conn
 from disnake.ext import commands, tasks
 from time import time
 from datas import great_unit_cnt
+from dbtools import CurrencySetupError, CurrencyNameError, SystemConnectionError, SystemNotFindError
 from asyncio import sleep
 
 import disnake
@@ -37,6 +38,15 @@ class Events(commands.Cog):
     async def on_slash_command_error(self, inter, error):
         if isinstance(error, commands.CommandOnCooldown):
             await inter.response.send_message(f'У нас перерыв. Приходите <t:{int(error.retry_after + time())}:R>')
+        elif isinstance(error, SystemConnectionError):
+            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+        elif isinstance(error, CurrencySetupError):
+            await inter.response.send_message('Валюта по умолчанию настроена неправильно')
+        elif isinstance(error, CurrencyNameError):
+            await inter.response.send_message(f'Валюты с названием "{error.args[0]}" не существует', ephemeral=True)
+        elif isinstance(error, SystemNotFindError):
+            await inter.response.send_message(f'Данной экономической системы не существует. Вы точно не мошенник?',
+                                              ephemeral=True)
 
     @tasks.loop(hours=1)
     async def update_stock_market(self):

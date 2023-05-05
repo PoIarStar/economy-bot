@@ -1,6 +1,7 @@
 from main import cur, conn
 from random import randint
 from disnake.ext import commands
+from dbtools import login
 
 import disnake
 
@@ -25,26 +26,21 @@ class Connection(commands.Cog):
     async def create_system(self, inter, sys_name, password):
         cur.execute("SELECT id FROM systems")
         ids = cur.fetchall()
-        n = randint(0, 99999999)
-        while n in ids:
-            n = randint(0, 99999999)
-        cur.execute(f"INSERT INTO systems(id, name, password) VALUES ({n}, '{sys_name}', '{password}')")
+        id = randint(0, 99999999)
+        while id in ids:
+            id = randint(0, 99999999)
+        cur.execute(f"INSERT INTO systems(id, name, password) VALUES ({id}, '{sys_name}', '{password}')")
         conn.commit()
-        await inter.response.send_message(f'Экономическая система успешно создана. Идентификатор системы - {n}. '
+        await inter.response.send_message(f'Экономическая система успешно создана. Идентификатор системы - {id}. '
                                           'Идентификатор используется при добавлении серверов к экономической системе. '
                                           'Пожалуйста, сохраните его.', ephemeral=True)
         await inter.author.send(
-            f'Вы создали новую экономическую систему. Идентификатор - ||{n}||, пароль - ||{password}||')
+            f'Вы создали новую экономическую систему. Идентификатор - ||{id}||, пароль - ||{password}||')
 
     @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
     async def delete_system(self, inter, id, password):
-        cur.execute(f"SELECT id, password FROM systems WHERE id = {id}")
-        n = cur.fetchone()
-        if not n:
-            await inter.response.send_message(f'Данной экономической системы не существует. Вы точно не мошенник?',
-                                              ephemeral=True)
-        elif n[1] == password:
+        if login(id, password):
             cur.execute(f"DELETE FROM systems WHERE id = {id}")
             cur.execute(f'UPDATE guilds SET system = NULL WHERE system = {id}')
             conn.commit()
@@ -59,12 +55,7 @@ class Connection(commands.Cog):
     @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
     async def connect_system(self, inter, id: int, password):
-        cur.execute(f"SELECT id, password FROM systems WHERE id = {id}")
-        n = cur.fetchone()
-        if not n:
-            await inter.response.send_message(f'Данной экономической системы не существует. Вы точно не мошенник?',
-                                              ephemeral=True)
-        elif n[1] == password:
+        if login(id, password):
             cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
             n = cur.fetchone()
             if not n:
@@ -97,12 +88,7 @@ class Connection(commands.Cog):
     @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
     async def disconnect_system(self, inter, id, password):
-        cur.execute(f"SELECT id, password FROM systems WHERE id = {id}")
-        n = cur.fetchone()
-        if not n:
-            await inter.response.send_message(f'Данной экономической системы не существует. Вы точно не мошенник?',
-                                              ephemeral=True)
-        elif n[1] == password:
+        if login(id, password):
             cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
             n = cur.fetchone()
             if all(n):

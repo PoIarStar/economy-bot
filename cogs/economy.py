@@ -2,6 +2,7 @@ from disnake.ext import commands
 from main import cur, conn
 from time import time
 from random import choice, randint
+from dbtools import get_system, get_currency
 from datas import recession, wheel
 
 import disnake
@@ -14,12 +15,7 @@ class Economy(commands.Cog):
     @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
     async def create_currency(self, inter, name, emoji, is_crypt=False):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+        system = get_system(inter.guild.id)
         cur.execute(f"SELECT id FROM currencies WHERE system = {system}")
         ids = [i[0] for i in cur.fetchall()]
         if len(ids) > 4:
@@ -34,12 +30,7 @@ class Economy(commands.Cog):
     @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
     async def edit_currency(self, inter, name, new_name, emoji):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+        system = get_system(inter.guild.id)
         cur.execute(f"UPDATE currencies SET emoji = '{emoji}', name = '{new_name}' WHERE"
                     f" name = '{name}' AND system = {system}")
         conn.commit()
@@ -48,21 +39,8 @@ class Economy(commands.Cog):
     @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
     async def delete_currency(self, inter, currency: str = None):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
-            return
-        if not currency:
-            cur.execute(f'SELECT default_currency FROM systems WHERE id = {system}')
-            cur.execute(f'SELECT name FROM currencies WHERE system = {system} AND id = {cur.fetchone()[0]}')
-            currency = cur.fetchone()
-            if not currency:
-                await inter.response.send_message('Валюта по-умолчанию настроена неправильно')
-                return
-            currency = currency[0]
+        system = get_system(inter.guild.id)
+        currency = get_currency(currency, system)
         cur.execute(f"SELECT * FROM currencies WHERE system = {system}")
         if cur.fetchone():
             cur.execute(f"SELECT id FROM currencies WHERE name = '{currency}' and system = {system}")
@@ -77,25 +55,14 @@ class Economy(commands.Cog):
     @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
     async def default_currency(self, inter, id: int = 1):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
-            return
+        system = get_system(inter.guild.id)
         cur.execute(f'UPDATE systems SET default_currency = {id} WHERE id = {system}')
         conn.commit()
         await inter.response.send_message('Успешно')
 
     @commands.slash_command()
     async def currencies(self, inter):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+        system = get_system(inter.guild.id)
         cur.execute(f"SELECT name, is_crypt, in_use, free, emoji FROM currencies WHERE system = {system}")
         currencies = cur.fetchall()
         text = ''
@@ -109,12 +76,7 @@ class Economy(commands.Cog):
 
     @commands.slash_command()
     async def profile(self, inter, user: disnake.User):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+        system = get_system(inter.guild.id)
         cur.execute(f"SELECT lvl, xp, social_rating, work_id, currency_1, currency_2, currency_3, currency_4, "
                     f"currency_5 FROM users WHERE system = {system} AND uid = {user.id}")
         values = cur.fetchone()
@@ -137,27 +99,8 @@ class Economy(commands.Cog):
     @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
     async def create_work(self, inter, name, wages: int, requirement_level: int = 1, currency: str = None):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
-            return
-        if not currency:
-            cur.execute(f'SELECT default_currency FROM systems WHERE id = {system}')
-            cur.execute(f'SELECT name FROM currencies WHERE system = {system} AND id = {cur.fetchone()[0]}')
-            currency = cur.fetchone()
-            if not currency:
-                await inter.response.send_message('Валюта по-умолчанию настроена неправильно')
-                return
-            currency = currency[0]
-        cur.execute(f"SELECT id FROM currencies WHERE name = '{currency}' and system = {system}")
-        currency = cur.fetchone()
-        if not currency:
-            await inter.response.send_message('Название валюты указано неверно')
-            return
-        currency = currency[0]
+        system = get_system(inter.guild.id)
+        currency = get_currency(currency, system)
         cur.execute(f"INSERT INTO works(name, currency, wages, req_lvl, system) VALUES"
                     f" ('{name}', '{currency}', {wages}, {requirement_level}, {system})")
         conn.commit()
@@ -166,27 +109,8 @@ class Economy(commands.Cog):
     @commands.slash_command()
     @commands.default_member_permissions(administrator=True)
     async def add_money(self, inter, user: disnake.User, value, currency: str = None, reason=''):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
-            return
-        if not currency:
-            cur.execute(f'SELECT default_currency FROM systems WHERE id = {system}')
-            cur.execute(f'SELECT name FROM currencies WHERE system = {system} AND id = {cur.fetchone()[0]}')
-            currency = cur.fetchone()
-            if not currency:
-                await inter.response.send_message('Валюта по-умолчанию настроена неправильно')
-                return
-            currency = currency[0]
-        cur.execute(f"SELECT id FROM currencies WHERE name = '{currency}' and system = {system}")
-        currency = cur.fetchone()
-        if not currency:
-            await inter.response.send_message('Название валюты указано неверно')
-            return
-        currency = currency[0]
+        system = get_system(inter.guild.id)
+        currency = get_currency(currency, system)
         cur.execute(f"UPDATE users set currency_{currency} = currency_{currency} + {int(value)} WHERE uid = {user.id} "
                     f"AND system = {system}")
         conn.commit()
@@ -195,12 +119,7 @@ class Economy(commands.Cog):
 
     @commands.slash_command()
     async def works(self, inter):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+        system = get_system(inter.guild.id)
         cur.execute(f"SELECT name, req_lvl, currency, wages FROM works WHERE system = {system}")
         emb = disnake.Embed(title='Вакансии')
         for i in cur.fetchall():
@@ -209,12 +128,7 @@ class Economy(commands.Cog):
 
     @commands.slash_command()
     async def work_selection(self, inter, name):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+        system = get_system(inter.guild.id)
         cur.execute(f"SELECT id FROM works WHERE system = {system} and name = '{name}'")
         work = cur.fetchone()
         if not work:
@@ -232,12 +146,7 @@ class Economy(commands.Cog):
 
     @commands.slash_command()
     async def work(self, inter):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+        system = get_system(inter.guild.id)
         cur.execute(f"SELECT work_time, work_id FROM users WHERE system = {system} and uid = {inter.author.id}")
         timer, work = cur.fetchone()
         time_now = time()
@@ -264,27 +173,8 @@ class Economy(commands.Cog):
     @commands.default_member_permissions(administrator=True)
     async def create_item(self, inter, name, description, price: int, currency: str = None,
                           add_role: disnake.Role = None, remove_role: disnake.Role = None):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
-            return
-        if not currency:
-            cur.execute(f'SELECT default_currency FROM systems WHERE id = {system}')
-            cur.execute(f'SELECT name FROM currencies WHERE system = {system} AND id = {cur.fetchone()[0]}')
-            currency = cur.fetchone()
-            if not currency:
-                await inter.response.send_message('Валюта по-умолчанию настроена неправильно')
-                return
-            currency = currency[0]
-        cur.execute(f"SELECT id FROM currencies WHERE system = {system} AND name = '{currency}'")
-        currency = cur.fetchone()
-        if not currency:
-            await inter.response.send_message('Название валюты указано неверно')
-            return
-        currency = currency[0]
+        system = get_system(inter.guild.id)
+        currency = get_currency(currency, system)
         cur.execute("INSERT INTO SHOP(name, description, currency, price, add_role, remove_role, guild)"
                     f" VALUES('{name}', '{description}', '{currency}', {price}, "
                     f"{add_role.id if add_role else 'NULL'}, {remove_role.id if remove_role else 'NULL'},"
@@ -324,12 +214,7 @@ class Economy(commands.Cog):
 
     @commands.slash_command()
     async def buy(self, inter, name):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
+        system = get_system(inter.guild.id)
         cur.execute(f"SELECT price, currency, req_lvl, add_role, remove_role FROM shop"
                     f" WHERE guild = {inter.guild.id} AND name = '{name}'")
         item = cur.fetchone()
@@ -361,21 +246,8 @@ class Economy(commands.Cog):
     @commands.cooldown(5, 1800)
     @commands.slash_command()
     async def roulette(self, inter, currency: str = None, bullets: int = 1):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
-            return
-        if not currency:
-            cur.execute(f'SELECT default_currency FROM systems WHERE id = {system}')
-            cur.execute(f'SELECT name FROM currencies WHERE system = {system} AND id = {cur.fetchone()[0]}')
-            currency = cur.fetchone()
-            if not currency:
-                await inter.response.send_message('Валюта по-умолчанию настроена неправильно')
-                return
-            currency = currency[0]
+        system = get_system(inter.guild.id)
+        currency = get_currency(currency, system)
         if bullets < 1:
             await inter.response.send_message(
                 'Хотите гарантий, что не проиграете? Гарантирую, что вы не выиграете!'
@@ -422,26 +294,11 @@ class Economy(commands.Cog):
     @commands.slash_command()
     @commands.cooldown(5, 3600, type=commands.BucketType.user)
     async def wheel_of_fortune(self, inter, bet: int, currency: str = None):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
-            return
-        if not currency:
-            cur.execute(f'SELECT default_currency FROM systems WHERE id = {system}')
-            cur.execute(f'SELECT name FROM currencies WHERE system = {system} AND id = {cur.fetchone()[0]}')
-            currency = cur.fetchone()
-            if not currency:
-                await inter.response.send_message('Валюта по-умолчанию настроена неправильно')
-                return
-            currency = currency[0]
-        cur.execute(f"SELECT is_crypt, great_unit, id, emoji FROM currencies WHERE name = '{currency}' AND system = {system}")
+        system = get_system(inter.guild.id)
+        currency = get_currency(currency, system)
+        cur.execute(
+            f"SELECT is_crypt, great_unit, id, emoji FROM currencies WHERE name = '{currency}' AND system = {system}")
         currency = cur.fetchone()
-        if not currency:
-            await inter.response.send_message('Название валюты указано неверно')
-            return
         if currency[0]:
             await inter.response.send_message('Мы не принимаем криптовалюту')
             return

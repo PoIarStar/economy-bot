@@ -2,6 +2,8 @@ import disnake
 from disnake.ext import commands
 from main import cur, conn
 from datas import bank
+from dbtools import get_system, get_currency
+
 import time
 
 
@@ -9,6 +11,7 @@ class Bank(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    # Получение пользователем кредита
     @commands.slash_command()
     async def get_credit(self, inter, money: int, days: int, currency: str = None):
         cur.execute(f"SELECT * FROM bank WHERE uid = {inter.author.id}")
@@ -22,21 +25,8 @@ class Bank(commands.Cog):
                                     description='Вы не можете выполнять несколько операций '
                                                 'в нашем банке одновременно.'))
             return
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
-            return
-        if not currency:
-            cur.execute(f'SELECT default_currency FROM systems WHERE id = {system}')
-            cur.execute(f'SELECT name FROM currencies WHERE system = {system} AND id = {cur.fetchone()[0]}')
-            currency = cur.fetchone()
-            if not currency:
-                await inter.response.send_message('Валюта по-умолчанию настроена неправильно')
-                return
-            currency = currency[0]
+        system = get_system(inter.guild.id)
+        currency = get_currency(currency, system)
         cur.execute(f"SELECT is_crypt, great_unit, id, emoji, name FROM currencies "
                     f"WHERE name = '{currency}' and system = {system}")
         currency = cur.fetchone()
@@ -86,14 +76,8 @@ class Bank(commands.Cog):
                 description=f'Мы не можем выдать вам кредит на сумму, большую {10 ** (2 + rating) * currency[1]}.'))
 
     @commands.slash_command()
-    async def repay(self, inter, repayment: int):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
-            return
+    async def repay(self, inter, repayment: int):  # Возврат кредита
+        system = get_system(inter.guild.id)
         cur.execute(f"SELECT value, currency FROM bank"
                     f" WHERE uid = {inter.author.id} AND system = {system} AND type = 'C'")
         if repayment <= 0:
@@ -150,21 +134,8 @@ class Bank(commands.Cog):
                                     description='Вы не можете выполнять несколько операций '
                                                 'в нашем банке одновременно.'))
             return
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
-            return
-        if not currency:
-            cur.execute(f'SELECT default_currency FROM systems WHERE id = {system}')
-            cur.execute(f'SELECT name FROM currencies WHERE system = {system} AND id = {cur.fetchone()[0]}')
-            currency = cur.fetchone()
-            if not currency:
-                await inter.response.send_message('Валюта по-умолчанию настроена неправильно')
-                return
-            currency = currency[0]
+        system = get_system(inter.guild.id)
+        currency = get_currency(currency, system)
         cur.execute(f"SELECT is_crypt, great_unit, id, emoji, name FROM currencies "
                     f"WHERE name = '{currency}' and system = {system}")
         currency = cur.fetchone()
@@ -215,13 +186,7 @@ class Bank(commands.Cog):
 
     @commands.slash_command()
     async def guarantee(self, inter, client: disnake.Member):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
-            return
+        system = get_system(inter.guild.id)
         cur.execute(f'SELECT guarantor FROM users WHERE uid = {client.id} AND system = {system}')
         if not cur.fetchone()[0]:
             cur.execute(f'UPDATE users SET guarantor = {inter.author.id} WHERE uid = {client.id} and system = {system}')
@@ -234,13 +199,7 @@ class Bank(commands.Cog):
 
     @commands.slash_command()
     async def guarantee_off(self, inter, client: disnake.Member):
-        cur.execute(f"SELECT system FROM guilds WHERE guild = {inter.guild.id}")
-        system = cur.fetchone()
-        if system:
-            system = system[0]
-        else:
-            await inter.response.send_message('Ваш сервер не подключен к экономической системе')
-            return
+        system = get_system(inter.guild.id)
         cur.execute(f'SELECT guarantor FROM users WHERE uid = {client.id} AND system = {system}')
         if cur.fetchone()[0] == inter.author.id:
             cur.execute(f'UPDATE users SET guarantor = NULL WHERE uid = {client.id} AND system = {system}')
